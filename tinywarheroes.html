@@ -1,0 +1,310 @@
+<!--
+@author: Alexander Kidd
+Created: 12/20/2015
+Description: In the spirit of Christmas/Ludum Dare,
+I decided to do a rapid-dev for the day.  Tiny War Heroes
+is an "3-laner" RTS.  Kind of like this:
+┻┳|
+┳┻| 
+┻┳|•.•) - Daddy, Are The Reptilians Gone?     HISSSSSSSS (<_<)
+┳┻|⊂ﾉ
+┻┳|                         HISSSSSSS (<_<)
+
+ /﹋\
+(҂`O´) - NOT YET SON!!!!                     HISSSSSSSS (<_<)
+<,︻╦╤─ ҉ -- -- -- -- --
+ /﹋\ 
+-->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Tiny War Heroes (AK)</title>
+    <style>
+    	* { padding: 0; margin: 0; }
+    	canvas { background: #eee; display: block; margin: 0 auto; }
+    </style>
+</head>
+<body>
+<canvas id="myCanvas" width="480" height="320"></canvas>
+
+<script>
+    /* WE USE MVC!  Separate View from Model from Controls. */
+    
+    // Business Logic:
+    var coins = 0;
+    var highScore = 0;
+    var gameOver = false;
+    var nextHero = 0;
+    var heroes = [];
+    var enemies = [];
+    
+    if(localStorage.getItem('tinyWarHeroesHighScore') === null) {
+        localStorage.setItem('tinyWarHeroesHighScore', 0);
+    }
+    else {
+        highScore = localStorage.getItem('tinyWarHeroesHighScore');
+    }
+    
+    // Sound FX:
+    var clash = new Audio('bit_clash_2.mp3');
+    clash.volume = 1;
+    
+    // Drawing Code:
+	var canvas = document.getElementById("myCanvas");
+    var ctx = canvas.getContext("2d");
+    var bg = new Image();
+    var bg2 = new Image();
+    var battleField = new Image();
+    var uiBar = new Image();
+    // Left-facing & right-facing sprites.
+    var napL = new Image();
+    var napR = new Image();
+    var vladL = new Image();
+    var vladR = new Image();
+    var sunL = new Image();
+    var sunR = new Image();
+    napL.src = 'tinyWarHeroNapoleonL.png';
+    napR.src = 'tinyWarHeroNapoleonR.png';
+    vladL.src = 'tinyWarHeroVladL.png';
+    vladR.src = 'tinyWarHeroVladR.png';
+    sunL.src = 'tinyWarHeroSunTzuL.png';
+    sunR.src = 'tinyWarHeroSunTzuR.png';
+    
+    var bgScrollX = 0;
+    var bgScrollX2 = 480;
+    
+    bg.src = 'tinyWarHero_bg.png';
+    bg2.src = 'tinyWarHero_bg.png';
+    uiBar.src = 'UIBar.png';
+    battleField.src = 'tinyWarHero_battlefield.png'
+    
+    function doMouseDown(event) {
+        if(nextHero != 0 && gameOver == false) {
+            rect = canvas.getBoundingClientRect();
+            heroX = event.clientX - rect.left;
+            heroY = event.clientY - rect.top;
+            heroImage = napL;
+            if(heroX >= 0 && heroX <= 75) {
+                switch(nextHero) {
+                    case 1:
+                        heroImage = napR;
+                        break;
+                    case 2:
+                        heroImage = vladR;
+                        break;    
+                    case 3:
+                        heroImage = sunR;
+                        break;
+                    default:
+                        heroImage = napR; // Something went wrong.
+                        break;
+                }
+                
+                if(heroY >= 230 && heroY <= 255) {
+                    hero = {id: nextHero, x: 40, y: 200, heroImage: heroImage, isAlive: true};
+                    heroes.push(hero);
+                    nextHero = 0;
+                }
+                if(heroY > 255 && heroY <= 290) {
+                    hero = {id: nextHero, x: 40, y: 235, heroImage: heroImage, isAlive: true};
+                    heroes.push(hero);
+                    nextHero = 0;
+                }
+                if(heroY > 290 && heroY <= 320) {
+                    hero = {id: nextHero, x: 40, y: 265, heroImage: heroImage, isAlive: true};
+                    heroes.push(hero);
+                    nextHero = 0;
+                }
+            }
+        }
+    }
+    canvas.addEventListener("mousedown", doMouseDown, false);
+    
+    function getRandomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+    
+    function generateHero() {
+        if(nextHero == 0) {
+            nextHero = getRandomInt(1, 3);
+        }
+    }
+    
+    function generateEnemy() {
+        nextEnemy = getRandomInt(1, 3);
+        nextPos = getRandomInt(1, 3);
+        enemyPosY = 0;
+        
+        switch(nextPos) {
+            case 1:
+                enemyPosY = 200;
+                break;
+            case 2:
+                enemyPosY = 235;
+                break;
+            case 3:
+                enemyPosY = 265;
+                break;
+            default:
+                // Shouldn't happen.
+                break;
+        }
+        
+        switch(nextEnemy) {
+            case 1:
+                enemy = {id: nextEnemy, x: 480, y: enemyPosY, enemyImage: napL, isAlive: true};
+                enemies.push(enemy);
+                break;
+            case 2:
+                enemy = {id: nextEnemy, x: 480, y: enemyPosY, enemyImage: vladL, isAlive: true};
+                enemies.push(enemy);
+                break;
+            case 3:
+                enemy = {id: nextEnemy, x: 480, y: enemyPosY, enemyImage: sunL, isAlive: true};
+                enemies.push(enemy);
+                break;
+            default:
+                // Shouldn't happen.
+                break;
+        }
+    }
+    
+    function update() {
+        if(gameOver == true) {
+            if(coins > highScore) {
+                localStorage.setItem('tinyWarHeroesHighScore', coins);
+            }
+        }
+        else {
+            // Check collisions and move.
+            for(i=heroes.length-1; i>=0; i--) {
+                heroes[i].x += .5;
+                if(heroes[i].x >= 480 && heroes[i].isAlive == true) {
+                    coins++;
+                    heroes[i].isAlive = false;
+                }
+                else {
+                    for(j=enemies.length-1; j>=0; j--) {
+                        if(heroes[i].y == enemies[j].y) {
+                            if(heroes[i].x + 60 > enemies[j].x) {
+                                clash.play();
+                                if(heroes[i].id == enemies[j].id) {
+                                    heroes[i].isAlive = false;
+                                    enemies[j].isAlive = false;
+                                }
+                                else if(heroes[i].id == 1 && enemies[j].id == 3) {
+                                    heroes[i].isAlive = false;
+                                }
+                                else if(heroes[i].id == 3 && enemies[j].id == 1) {
+                                    enemies[j].isAlive = false;
+                                    coins++;
+                                }
+                                else if(heroes[i].id == 2 && enemies[j].id == 3) {
+                                    enemies[j].isAlive = false;
+                                    coins++;
+                                }
+                                else if(heroes[i].id == 3 && enemies[j].id == 2) {
+                                    heroes[i].isAlive = false;
+                                }
+                                else if(heroes[i].id == 1 && enemies[j].id == 2) {
+                                    enemies[j].isAlive = false;
+                                    coins++;
+                                }
+                                else if(heroes[i].id == 2 && enemies[j].id == 1) {
+                                    heroes[i].isAlive = false;
+                                }
+                            }
+                        }
+
+                        heroes = heroes.filter(function(hero) {
+                        return hero.isAlive;});
+                        enemies = enemies.filter(function(enemy) {
+                        return enemy.isAlive;});
+                    }
+                }
+            }
+
+            for(j=enemies.length-1; j>=0; j--) {
+                enemies[j].x -= .5;
+                if(enemies[j].x <= -75) {
+                    gameOver = true;
+                }
+            }
+        }
+        
+        bgScrollX -= .25;
+        bgScrollX2 -= .25;
+        if(bgScrollX <= -480) {
+            bgScrollX = 481;
+        }
+        if(bgScrollX2 <= -480) {
+            bgScrollX2 = 481;
+        }
+    }
+    
+    function draw() {
+        ctx.drawImage(bg, bgScrollX, 0);
+        ctx.drawImage(bg2, bgScrollX2, 0);
+        
+        ctx.drawImage(uiBar, 0, 0);
+        ctx.drawImage(battleField, 0, 190);
+        
+        ctx.font = "18px serif";
+        ctx.fillStyle = "orange"
+        ctx.fillText("High Score: " + highScore, 340, 23);
+        ctx.font = "30px serif";
+        ctx.fillStyle = "yellow"
+        ctx.fillText(coins, 430, 65);
+        
+        switch(nextHero) {
+            case 1:
+                ctx.drawImage(napR, 60, 20);
+                break;
+            case 2:
+                ctx.drawImage(vladR, 60, 20);
+                break;    
+            case 3:
+                ctx.drawImage(sunR, 60, 20);
+                break;
+            default:
+                // Nothing there, nothing to display.  All business logic elsewhere.
+                break;
+            }
+        
+        for(i=heroes.length-1; i>=0; i--) {
+            ctx.drawImage(heroes[i].heroImage, heroes[i].x, heroes[i].y);
+        }
+        for(j=enemies.length-1; j>=0; j--) {
+            ctx.drawImage(enemies[j].enemyImage, enemies[j].x, enemies[j].y);
+        }
+        
+        if(gameOver == true) {
+            ctx.font = "30px serif";
+            ctx.fillStyle = "red"
+            ctx.fillText("Game Over! Refresh To Play Again.", 20, 140);
+        }
+    }
+    
+    if(gameOver == false) {
+        var generateInterv = setInterval(generateHero, 3000);
+        var generateEnemyInterv = setInterval(generateEnemy, 3000);
+        var updateInterv = setInterval(update, 10);
+        var drawInterv = setInterval(draw, 10);
+    }
+</script>
+
+<center>
+<h1>Instructions</h1>
+Click on one of the three black boxes (lanes) to deploy the current warrior.  Get coins for defeating an enemy and reaching enemy lines, but defend your lanes!
+    <br>
+    Remember:
+        <br>
+        Napoleon Beats Vlad The Impaler (Napoleon conquered Europe up to Russia although different time periods.)
+        <br>
+        Vlad The Impaler Beats Sun Tzu (A nice "Deadliest Warrior" reference)
+        <br>
+        Sun Tzu Beats Napoleon (He is better at "The Art of War" & wore down Napoleon's army)
+</center>
+</body>
+</html>
