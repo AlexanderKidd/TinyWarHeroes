@@ -4,7 +4,7 @@ time delay, randomness, and space variation (3 lanes to move in) that make it mo
 However, much of the calibration was left to still be rather random, although easy enough to
 score a few points having read the instructions.
 
-To run, simply open the html file in a modern (Chrome, Firefox, Edge) browser.
-Instructions on how to play are included on the html file.
+To run, download the folder and simply open the html file inside in a modern (Chrome, Firefox, Edge) browser.
+Instructions on how to play are included on the html file/page.
 
 ~Alexander Kidd
